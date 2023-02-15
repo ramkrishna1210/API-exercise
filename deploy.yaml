@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample_test-dep
+  namespace: test-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample_test-dep
+  template:
+    metadata:
+      labels:
+        app: sample_test-dep
+        role: rolling-update
+    spec:
+      containers:
+      - name: sample_test-dep
+        image: epeacrforallenv.azurecr.io/sample_test:latest
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c">> /etc/hosts"]
+        env:
+        - name: START_DELAY
+          value: "0"
+        ports:
+          - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: epe/
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+          timeoutSeconds: 1
+        readinessProbe:
+          httpGet:
+            path: epe/
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: "4096Mi"
+            cpu: "4"
+          requests:
+            memory: "1024Mi"
+            cpu: "1"
+        volumeMounts:
+          - name: azure
+            mountPath: /logs
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0

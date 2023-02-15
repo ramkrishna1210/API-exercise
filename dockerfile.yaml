@@ -1,0 +1,29 @@
+FROM adoptopenjdk/openjdk11:jdk-11.0.6_10-alpine
+ENV LANG C.UTF-8
+ENV MIN_HEAP_SIZE='-Xms512m'
+ENV MAX_HEAP_SIZE='-Xmx800m'
+ENV THREADSTACK_SIZE='-Xss512k'
+
+ENV JAVA_OPTS=' -server -Duser.timezone=America/Chicago -DDefaultTimeZone America/Chicago -Djava.security.egd=file:/dev/./urandom -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs'
+ENV JAVA_GC_ARGS='  -XX:+UseConcMarkSweepGC -XX:GCLogFileSize=10M -XX:+UseGCLogFileRotation -XX:+PrintGCTimeStamps -XX:NumberOfGCLogFiles=7 '
+ENV JAVA_OPTS_APPEND='-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
+ENV DOCKER_HOST=tcp://epedevusccontainerregistry.azurecr.io DOCKER_TLS_VERIFY=1
+
+RUN apk --no-cache add bash sed grep coreutils git openssh-client curl file rsync openssh tar wget iputils busybox-extras cifs-utils sudo
+RUN apk update
+
+RUN set -x \
+    && apk add --no-cache --update socat tzdata \
+    && cp /usr/share/zoneinfo/America/Chicago /etc/localtime \
+    && echo "US/Central" >  /etc/timezone \
+    && apk del tzdata \
+    && rm -rf /var/cache/apk/*
+
+VOLUME /opt
+RUN mkdir -p /logs
+RUN mkdir scripts
+RUN chmod 777 /logs
+EXPOSE 8080
+
+ADD ./sample_test.jar sample_test.jar
+ENTRYPOINT ["java", "-Dspring.cloud.config.enabled=true", "-DLOG4J_LEVEL=info", "-Dspring.profiles.active=dev", "-Ddomain=sample_test", "-Dlogging.file=/logs/exception.log", "-Denv=dev", "-Dserver.port=8080", "-DMANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*", "-jar", "sample_test.jar"]
